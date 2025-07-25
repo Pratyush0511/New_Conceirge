@@ -65,7 +65,7 @@ if not MONGO_URI:
     raise RuntimeError("MONGO_URI not set in .env")
 
 client = MongoClient(
-    os.getenv("MONGODB_URL"),
+    os.getenv("MONGODB_URI"),
     tlsCAFile=certifi.where()
 )
 
