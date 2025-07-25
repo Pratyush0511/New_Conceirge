@@ -1,4 +1,3 @@
-import certifi
 import os
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
