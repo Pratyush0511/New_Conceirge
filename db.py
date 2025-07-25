@@ -13,7 +13,6 @@ try:
         MONGO_URI,
         tls=True,
         tlsCAFile=certifi.where(),
-        tlsAllowInvalidCertificates=False
     )
     db = client[MONGO_DB_NAME]
     users_collection = db["users"]
