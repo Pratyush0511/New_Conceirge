@@ -24,8 +24,8 @@ async def signup(username: str = Form(...), password: str = Form(...)):
             "password": password
         })
 
-        return RedirectResponse(url="/chat", status_code=status.HTTP_303_SEE_OTHER)
-
+        return RedirectResponse(url=f"/chat?username={username}", status_code=status.HTTP_303_SEE_OTHER)
+        
     except HTTPException as e:
         raise e
     except Exception as e:
