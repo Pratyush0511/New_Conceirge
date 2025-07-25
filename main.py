@@ -130,13 +130,15 @@ async def chat_history_page(request: Request):
         # Redirect to login if username is not provided (user not logged in)
         return RedirectResponse(url="/login", status_code=303)
 
+    # Ensure history_collection is initialized before use
+    from db import history_collection # Re-import to ensure it's the latest state
     if history_collection is None:
         raise HTTPException(status_code=503, detail="Database history collection not available.")
 
     try:
         # Fetch chat history for the specific user, sorted by timestamp
         raw_history = list(history_collection.find({"username": username}))
-        
+
         # Sort history by timestamp in descending order (most recent first)
         sorted_history = sorted(raw_history, key=lambda x: x.get("timestamp", datetime.min), reverse=True)
 
@@ -151,4 +153,24 @@ async def chat_history_page(request: Request):
     except Exception as e:
         logging.error(f"Error fetching chat history for {username}: {e}")
         return JSONResponse(status_code=500, content={"error": "Could not retrieve chat history."})
+    
+@app.get("/chat/history")
+async def get_chat_history(request: Request):
+    username = request.query_params.get("username")
+    if not username:
+        return JSONResponse(status_code=400, content={"error": "Username is required"})
 
+    try:
+        raw_history = list(history_collection.find({"username": username}).sort("timestamp", 1))  # Sort oldest to newest
+
+        formatted_history = [
+            {
+                "user_message": entry.get("user_message", ""),
+                "bot_response": entry.get("bot_response", ""),
+                "timestamp": entry.get("timestamp").strftime("%Y-%m-%d %H:%M:%S") if entry.get("timestamp") else "N/A"
+            }
+            for entry in raw_history
+        ]
+        return JSONResponse(content={"history": formatted_history})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
