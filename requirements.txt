@@ -8,3 +8,4 @@ google-generativeai==0.3.2
 jinja2
 python-multipart
 pydantic
+certifi
