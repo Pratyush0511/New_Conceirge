@@ -12,5 +12,6 @@ client = MongoClient(
     os.getenv("MONGODB_URL"),
     tlsCAFile=certifi.where()
 )
+
 db = client[MONGO_DB_NAME]
 users_collection = db["users"]
