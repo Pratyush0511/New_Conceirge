@@ -1,3 +1,4 @@
+import certifi
 import os
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
@@ -63,7 +64,11 @@ MONGO_URI = os.getenv("MONGO_URI")
 if not MONGO_URI:
     raise RuntimeError("MONGO_URI not set in .env")
 
-client = MongoClient(MONGO_URI)
+client = MongoClient(
+    os.getenv("MONGODB_URL"),
+    tlsCAFile=certifi.where()
+)
+
 db = client["chatbot_db"]
 users_collection = db["users"]
 
