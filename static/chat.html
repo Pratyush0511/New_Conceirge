@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Hotel Concierge Chatbot</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="chatbox">
+    <div class="chat-header">
+      Welcome, <span id="username-display">{{ username }}</span>!
+    </div>
+    <div class="chat-messages" id="chat-messages">
+      <!-- Messages will appear here -->
+    </div>
+    <div class="chat-input">
+      <input type="text" id="message-input" placeholder="Ask something..." />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+  <script>
+    // Parse username from URL
+    const params = new URLSearchParams(window.location.search);
+    const username = params.get("username");
+
+    if (!username) {
+      alert("No username found. Redirecting to login.");
+      window.location.href = "/";
+    }
+
+    document.getElementById("username-display").textContent = username;
+
+    const chatMessages = document.getElementById("chat-messages");
+
+    function appendMessage(sender, text) {
+      const div = document.createElement("div");
+      div.classList.add("chat-message", sender);
+      div.textContent = text;
+      chatMessages.appendChild(div);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById("message-input");
+      const message = input.value.trim();
+      if (!message) return;
+
+      appendMessage("user", "You: " + message);
+      input.value = "";
+
+      try {
+        const response = await fetch(`/chat?username=${encodeURIComponent(username)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message }),
+        });
+
+        const data = await response.json();
+        if (data.response) {
+          appendMessage("bot", "Bot: " + data.response);
+        } else {
+          appendMessage("bot", "Bot: Error processing your request.");
+        }
+      } catch (err) {
+        console.error(err);
+        appendMessage("bot", "Bot: Network error.");
+      }
+    }
+
+    // Optional: Send message on Enter key press
+    document.getElementById("message-input").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") sendMessage();
+    });
+  </script>
+</body>
+</html>
