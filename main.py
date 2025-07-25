@@ -11,9 +11,9 @@ from langchain.memory import ConversationBufferMemory
 from langchain_google_genai import ChatGoogleGenerativeAI
 import logging
 from datetime import datetime
-from db import history_collection # New: Import history_collection
+from db import history_collection 
 
-# Configure logging
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 load_dotenv()
