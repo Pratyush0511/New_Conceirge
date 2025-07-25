@@ -8,12 +8,16 @@ load_dotenv()
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME")
 
-client = MongoClient(
-    MONGO_URI,
-    tls=True,
-    tlsAllowInvalidCertificates=False,
-    tlsCAFile=certifi.where()
-)
+try:
+    client = MongoClient(
+        MONGO_URI,
+        tls=True,
+        tlsCAFile=certifi.where(),
+        tlsAllowInvalidCertificates=False
+    )
+    db = client[MONGO_DB_NAME]
+    users_collection = db["users"]
+    print("✅ Connected to MongoDB Atlas")
+except Exception as e:
+    print("❌ MongoDB connection error:", e)
 
-db = client[MONGO_DB_NAME]
-users_collection = db["users"]
