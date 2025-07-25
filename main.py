@@ -6,7 +6,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from dotenv import load_dotenv
-from pymongo import MongoClient
 from auth import router as auth_router
 from langchain.chains import ConversationChain
 from langchain.memory import ConversationBufferMemory
@@ -59,18 +58,6 @@ conversation.memory.chat_memory.add_ai_message(
     "Address: Marine Drive, Mumbai, Maharashtra. Phone: +91-9876543210."
 )
 
-# MongoDB connection
-MONGO_URI = os.getenv("MONGO_URI")
-if not MONGO_URI:
-    raise RuntimeError("MONGO_URI not set in .env")
-
-client = MongoClient(
-    os.getenv("MONGODB_URI"),
-    tlsCAFile=certifi.where()
-)
-
-db = client["chatbot_db"]
-users_collection = db["users"]
 
 # Routes
 @app.get("/", response_class=HTMLResponse)
