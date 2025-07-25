@@ -11,7 +11,6 @@ MONGO_DB_NAME = os.getenv("MONGO_DB_NAME")
 try:
     client = MongoClient(
         MONGO_URI,
-        tls=True,
         tlsCAFile=certifi.where(),
     )
     db = client[MONGO_DB_NAME]
