@@ -18,6 +18,12 @@
       <input type="text" id="message-input" placeholder="Ask something..." />
       <button onclick="sendMessage()">Send</button>
     </div>
+    <form action="/history" method="get">
+        <input type="hidden" name="username" value="{{ username }}">
+        <button type="submit" style="padding: 8px 12px; background-color: #2ecc71; color: white; border: none; border-radius: 5px;">
+            🕘 History
+        </button>
+    </form>
   </div>
 
   <script>
@@ -54,7 +60,7 @@
         const response = await fetch(`/chat?username=${encodeURIComponent(username)}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message }),
+          body: JSON.stringify({ message, username }),
         });
 
         const data = await response.json();
@@ -73,6 +79,26 @@
     document.getElementById("message-input").addEventListener("keydown", function (e) {
       if (e.key === "Enter") sendMessage();
     });
+      async function loadHistory() {
+        try {
+          const res = await fetch(`/chat/history?username=${encodeURIComponent(username)}`);
+          const data = await res.json();
+
+          if (data.history && data.history.length > 0) {
+            for (const entry of data.history) {
+              if (entry.user_message) appendMessage("user", "You: " + entry.user_message);
+              if (entry.bot_response) appendMessage("bot", "Bot: " + entry.bot_response);
+            }
+          }
+        } catch (err) {
+          console.error("Failed to load history", err);
+        }
+      }
+
+      // Load on page load
+      window.onload = function () {
+        loadHistory();  // <--- Load chat history on startup
+      };
   </script>
 </body>
 </html>
