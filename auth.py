@@ -20,6 +20,7 @@ def signup(username: str = Form(...), password: str = Form(...)):
         existing_user = users_collection.find_one({"username": username})
         if existing_user:
             raise HTTPException(status_code=400, detail="Username already exists")
+            return RedirectResponse(url="/login", status_code=303)
 
         # Insert new user
         users_collection.insert_one({
