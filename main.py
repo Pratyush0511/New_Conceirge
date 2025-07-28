@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Form, Response
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +12,8 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 import logging
 from datetime import datetime
 from db import history_collection 
+from twilio.twiml.messaging_response import MessagingResponse
+from fastapi.responses import PlainTextResponse
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -57,29 +59,14 @@ if gemini_api_key:
             verbose=True
         )
         # System prompt: Enforces strict adherence to hotel-related questions
-        conversation.memory.chat_memory.add_ai_message("""
-        You are a polite, professional, and highly specialized hotel concierge for **The Grand Horizon Hotel**, a 5-star luxury hotel located in Mumbai. Your sole purpose is to assist guests exclusively with inquiries directly related to the hotel and its services.
-        
-        **Hotel Information:**
-        * **Name:** The Grand Horizon Hotel  
-        * **Star Rating:** 5-star luxury  
-        * **Location:** Marine Drive, Mumbai, Maharashtra  
-        * **Phone:** +91-9876543210  
-        * **Services:** Check-in/check-out info, restaurant hours, spa bookings, transport arrangements (including **cab booking**), **local weather inquiries**, **nearby sightseeing suggestions**, room amenities, and general hotel information.  
-        * **Offerings:** Deluxe Rooms, Presidential Suites, Rooftop Dining, 24x7 Room Service, Free Wi-Fi, Airport Pickup, Wellness Spa.  
-        * **Timings:** Check-in is 2 PM, check-out is 11 AM.  
-        * **Wi-Fi Details:** The Wi-Fi network name is 'GrandHorizonGuest' and the password is 'HorizonStay2025'.  
-        * **Dining Hours (Rooftop Dining):**  
-            * **Breakfast:** 7:00 AM - 10:30 AM  
-            * **Lunch:** 12:30 PM - 3:00 PM  
-            * **Dinner:** 7:00 PM - 11:00 PM  
-        
-        **Strict Instruction:**  
-        You MUST only answer questions that fall within the scope of a hotel concierge for The Grand Horizon Hotel, specifically covering the details provided above. If a user asks about *anything* else (e.g., personal opinions, general knowledge, news, other businesses, politics, or any topic unrelated to the hotel's services), you must respond with the following exact phrase and nothing more:
-        
-        "I'm sorry, I can only assist with inquiries related to The Grand Horizon Hotel and its services. How can I help you with your stay today?"
-        """)
-
+        conversation.memory.chat_memory.add_ai_message(
+            "You are a polite, professional hotel concierge for **The Grand Horizon Hotel**, "
+            "a 5-star luxury hotel located in Mumbai. Help guests with check-in/check-out info, "
+            "restaurant hours, spa bookings, transport arrangements, sightseeing suggestions, and more. "
+            "The hotel offers: Deluxe Rooms, Presidential Suites, Rooftop Dining, 24x7 Room Service, "
+            "Free Wi-Fi, Airport Pickup, and a Wellness Spa. Check-in is 2 PM, check-out is 11 AM. "
+            "Address: Marine Drive, Mumbai, Maharashtra. Phone: +91-9876543210. IMPORTANT: Only answer questions related to The Grand Horizon Hotel and its services. If a user asks about anything else, respond with: 'I'm sorry, I can only assist with inquiries related to The Grand Horizon Hotel. How can I help you with your stay today?'"
+        )
         logging.info("✅ Gemini LLM initialized successfully.")
     except Exception as e:
         logging.error(f"❌ Error initializing Gemini LLM: {e}")
@@ -189,3 +176,49 @@ async def get_chat_history(request: Request):
         return JSONResponse(content={"history": formatted_history})
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@app.post("/whatsapp", response_class=PlainTextResponse)
+async def whatsapp_webhook(
+    From: str = Form(...), 
+    Body: str = Form(...) 
+):
+    user_message = Body.strip()
+    user_phone_number = From
+    
+    if conversation is None:
+        logging.error("AI service not available for WhatsApp request.")
+        resp = MessagingResponse()
+        resp.message("I'm sorry, the concierge service is currently unavailable. Please try again later.")
+        return Response(content=str(resp), media_type="text/xml")
+
+    if history_collection is None:
+        logging.error("Database history collection not available for WhatsApp request.")
+        resp = MessagingResponse()
+        resp.message("I'm sorry, I'm having trouble saving our conversation history. Please try again later.")
+        return Response(content=str(resp), media_type="text/xml")
+
+    try:
+        
+        bot_reply = conversation.predict(input=user_message)
+
+        
+        timestamp = datetime.now()
+        history_collection.insert_one({
+            "username": user_phone_number, 
+            "timestamp": timestamp,
+            "user_message": user_message,
+            "bot_response": bot_reply
+        })
+        logging.info(f"WhatsApp chat saved for user: {user_phone_number}")
+
+        
+        resp = MessagingResponse()
+        resp.message(bot_reply)
+        return Response(content=str(resp), media_type="text/xml")
+
+    except Exception as e:
+        logging.error(f"Error processing WhatsApp message from {user_phone_number}: {e}")
+        resp = MessagingResponse()
+        resp.message("I apologize, but I encountered an error while processing your request. Please try again.")
+        return Response(content=str(resp), media_type="text/xml")
