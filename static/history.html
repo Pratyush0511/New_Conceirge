@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat History - The Grand Horizon Hotel</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f6fa;
+            padding: 2rem;
+            margin: 0;
+            display: flex;
+            flex-direction: column; /* Changed to column to allow content to flow vertically */
+            align-items: center; /* Center horizontally */
+            min-height: 100vh; /* Ensure it takes full viewport height */
+        }
+        .container {
+            max-width: 800px;
+            margin: auto; /* Centers the container */
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            width: 100%; /* Ensure it takes full width up to max-width */
+            box-sizing: border-box; /* Include padding in width calculation */
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 1.5rem; /* Added margin for spacing */
+        }
+        .chat-bubble {
+            margin: 1rem 0;
+            padding: 1rem;
+            border-radius: 10px;
+            word-wrap: break-word; /* Ensure long words wrap */
+        }
+        .user {
+            background-color: #d1ecf1;
+            text-align: right;
+            margin-left: auto; /* Pushes the bubble to the right */
+            max-width: 75%; /* Limit bubble width */
+        }
+        .bot {
+            background-color: #e2e3e5;
+            text-align: left;
+            margin-right: auto; /* Pushes the bubble to the left */
+            max-width: 75%; /* Limit bubble width */
+        }
+        .timestamp {
+            font-size: 0.8rem;
+            color: gray;
+            margin-top: 4px;
+        }
+        .user .timestamp {
+            text-align: right;
+        }
+        .bot .timestamp {
+            text-align: left;
+        }
+        .back-to-chat-button {
+            background-color: #3498db;
+            color: white;
+            padding: 12px 20px;
+            margin-top: 2rem; /* Increased margin for spacing */
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s ease;
+            text-decoration: none; /* Remove underline from link */
+            display: inline-block; /* Make it behave like a block for padding */
+        }
+        .back-to-chat-button:hover {
+            background-color: #2980b9;
+        }
+        .message-pair {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 1.5rem; /* Spacing between user/bot pairs */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Chat History for {{ username }}</h1>
+
+        {% if history %}
+            {% for entry in history %}
+                <div class="message-pair">
+                    <div class="chat-bubble user">
+                        <strong>You:</strong> {{ entry.user_message }}
+                        <div class="timestamp">{{ entry.timestamp_str }}</div>
+                    </div>
+                    <div class="chat-bubble bot">
+                        <strong>Concierge:</strong> {{ entry.bot_response }}
+                        <div class="timestamp">{{ entry.timestamp_str }}</div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p style="text-align: center; color: #666;">No chat history available.</p>
+        {% endif %}
+
+        <div style="text-align:center;">
+            <a href="/chat?username={{ username }}" class="back-to-chat-button">Back to Chat</a>
+        </div>
+    </div>
+</body>
+</html>
