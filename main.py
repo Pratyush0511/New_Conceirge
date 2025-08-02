@@ -151,17 +151,17 @@ async def chat(request: Request):
 
         if not ai_enabled:
             manual_msg = "The admin will respond to your message shortly."
-            result = history_collection.insert_one({
+            history_collection.insert_one({
                 "username": username,
-                "hotel": selected_hotels.get(username, "Unknown"),
+                "hotel": selected_hotels.get(username, "N/A"),
                 "timestamp": datetime.now(),
                 "user_message": message,
-                "bot_response": manual_msg  # ✅ correct
+                "bot_response": manual_msg  # Corrected variable name
             })
-            logging.info(f"[DB] Inserted chat history: {result.inserted_id}")
+            logging.info(f"[DB] Inserted chat history for manual response.")
             return JSONResponse(content={"response": manual_msg})
-            
 
+        reply = "" # Initialize reply to prevent UnboundLocalError
         if username not in selected_hotels:
             hotel_data = hotels_collection.find_one({"hotel_name": {"$regex": f"^{message}$", "$options": "i"}})
             if hotel_data:
@@ -177,12 +177,12 @@ async def chat(request: Request):
                     )
 
                 selected_hotels[username] = hotel_name
-                return JSONResponse(content={"response": f"You're now chatting with {hotel_name} concierge. How can I help you?"})
+                reply = f"You're now chatting with {hotel_name} concierge. How can I help you?"
             else:
                 hotels = list(hotels_collection.find({}, {"hotel_name": 1}))
                 hotel_names = [h["hotel_name"] for h in hotels]
                 hotel_list = "\n- ".join(hotel_names)
-                return JSONResponse(content={"response": f"Please choose a hotel from the following list:\n- {hotel_list}"})
+                reply = f"Please choose a hotel from the following list:\n- {hotel_list}"
 
         reset_phrases = ["change hotel", "different hotel", "try another hotel", "switch hotel", "reset hotel", "choose hotel again"]
         if any(phrase in message.lower() for phrase in reset_phrases):
@@ -195,11 +195,12 @@ async def chat(request: Request):
             
             return JSONResponse(content={"response": f"Sure! Please choose a hotel from the following list:\n- {hotel_list}"})
         
-        reply = conversation.predict(input=message)
+        if not reply:
+            reply = conversation.predict(input=message)
 
         history_collection.insert_one({
             "username": username,
-            "hotel": selected_hotels[username],
+            "hotel": selected_hotels.get(username, "N/A"),
             "timestamp": datetime.now(),
             "user_message": message,
             "bot_response": reply
@@ -254,8 +255,10 @@ async def whatsapp_webhook(
             resp.message("AI service is currently unavailable.")
             return Response(content=str(resp), media_type="text/xml")
 
+        bot_reply = "" # Initialize bot_reply
         if username not in selected_hotels:
-            hotel_data = hotels_collection.find_one({"name": {"$regex": f"^{user_message}$", "$options": "i"}})
+            # Corrected field name from "name" to "hotel_name"
+            hotel_data = hotels_collection.find_one({"hotel_name": {"$regex": f"^{user_message}$", "$options": "i"}})
             if hotel_data:
                 conversation.memory.clear()
                 hotel_name, prompt = build_hotel_prompt(hotel_data)
@@ -269,15 +272,17 @@ async def whatsapp_webhook(
                     )
 
                 selected_hotels[username] = hotel_name
+                bot_reply = f"You're now chatting with {hotel_name} concierge. How can I help you?"
                 resp = MessagingResponse()
-                resp.message(f"You're now chatting with {hotel_name} concierge. How can I help you?")
+                resp.message(bot_reply)
                 return Response(content=str(resp), media_type="text/xml")
             else:
-                hotels = list(hotels_collection.find({}, {"name": 1}))
+                hotels = list(hotels_collection.find({}, {"hotel_name": 1}))
                 hotel_names = [h["hotel_name"] for h in hotels]
                 hotel_list = "\n- ".join(hotel_names)
+                bot_reply = f"Please choose a hotel from the following list:\n- {hotel_list}"
                 resp = MessagingResponse()
-                resp.message(f"Please choose a hotel from the following list:\n- {hotel_list}")
+                resp.message(bot_reply)
                 return Response(content=str(resp), media_type="text/xml")
 
         reset_phrases = ["change hotel", "different hotel", "try another hotel", "switch hotel", "reset hotel", "choose hotel again"]
@@ -289,16 +294,17 @@ async def whatsapp_webhook(
             hotel_names = [h["hotel_name"] for h in hotels]
             hotel_list = "\n- ".join(hotel_names)
             
+            bot_reply = f"Sure! Please choose a hotel from the following list:\n- {hotel_list}"
             resp = MessagingResponse()
-            resp.message(f"Sure! Please choose a hotel from the following list:\n- {hotel_list}")
+            resp.message(bot_reply)
             return Response(content=str(resp), media_type="text/xml")
 
-        
-        bot_reply = conversation.predict(input=user_message)
+        if not bot_reply:
+            bot_reply = conversation.predict(input=user_message)
 
         history_collection.insert_one({
             "username": username,
-            "hotel": selected_hotels[username],
+            "hotel": selected_hotels.get(username, "N/A"),
             "timestamp": datetime.now(),
             "user_message": user_message,
             "bot_response": bot_reply
