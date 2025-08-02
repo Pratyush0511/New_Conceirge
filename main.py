@@ -153,13 +153,14 @@ async def chat(request: Request):
             manual_msg = "The admin will respond to your message shortly."
             result = history_collection.insert_one({
                 "username": username,
-                "hotel": selected_hotels[username],
+                "hotel": selected_hotels.get(username, "Unknown"),
                 "timestamp": datetime.now(),
                 "user_message": message,
-                "bot_response": reply
+                "bot_response": manual_msg  # ✅ correct
             })
             logging.info(f"[DB] Inserted chat history: {result.inserted_id}")
             return JSONResponse(content={"response": manual_msg})
+            
 
         if username not in selected_hotels:
             hotel_data = hotels_collection.find_one({"hotel_name": {"$regex": f"^{message}$", "$options": "i"}})
