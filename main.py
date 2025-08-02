@@ -153,6 +153,17 @@ async def chat(request: Request):
                 hotel_list = "\n- ".join(hotel_names)
                 return JSONResponse(content={"response": f"Please choose a hotel from the following list:\n- {hotel_list}"})
 
+        reset_phrases = ["change hotel", "different hotel", "try another hotel", "switch hotel", "reset hotel", "choose hotel again"]
+            if any(phrase in message.lower() for phrase in reset_phrases):
+                conversation.memory.clear()
+                selected_hotels.pop(username, None)
+            
+                hotels = list(hotels_collection.find({}, {"hotel_name": 1}))
+                hotel_names = [h["hotel_name"] for h in hotels]
+                hotel_list = "\n- ".join(hotel_names)
+            
+                return JSONResponse(content={"response": f"Sure! Please choose a hotel from the following list:\n- {hotel_list}"})
+        
         reply = conversation.predict(input=message)
 
         history_collection.insert_one({
@@ -238,6 +249,20 @@ async def whatsapp_webhook(
                 resp.message(f"Please choose a hotel from the following list:\n- {hotel_list}")
                 return Response(content=str(resp), media_type="text/xml")
 
+        reset_phrases = ["change hotel", "different hotel", "try another hotel", "switch hotel", "reset hotel", "choose hotel again"]
+            if any(phrase in user_message.lower() for phrase in reset_phrases):
+                conversation.memory.clear()
+                selected_hotels.pop(username, None)
+            
+                hotels = list(hotels_collection.find({}, {"hotel_name": 1}))
+                hotel_names = [h["hotel_name"] for h in hotels]
+                hotel_list = "\n- ".join(hotel_names)
+            
+                resp = MessagingResponse()
+                resp.message(f"Sure! Please choose a hotel from the following list:\n- {hotel_list}")
+                return Response(content=str(resp), media_type="text/xml")
+
+        
         bot_reply = conversation.predict(input=user_message)
 
         history_collection.insert_one({
