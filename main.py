@@ -123,12 +123,14 @@ async def chat(request: Request):
 
         if not ai_enabled:
             manual_msg = "The admin will respond to your message shortly."
-            history_collection.insert_one({
+            result = history_collection.insert_one({
                 "username": username,
+                "hotel": selected_hotels[username],
                 "timestamp": datetime.now(),
                 "user_message": message,
-                "bot_response": manual_msg
+                "bot_response": reply
             })
+            logging.info(f"[DB] Inserted chat history: {result.inserted_id}")
             return JSONResponse(content={"response": manual_msg})
 
         if username not in selected_hotels:
