@@ -137,3 +137,13 @@ button:hover {
   padding: 0 1rem;
 }
 
+.chat-message.admin {
+  background-color: #f39c12;
+  color: white;
+  align-self: flex-end;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin: 5px;
+  max-width: 80%;
+}
+
