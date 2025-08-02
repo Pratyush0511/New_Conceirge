@@ -1,7 +1,7 @@
 import os
 from fastapi import APIRouter, HTTPException, Form
 from fastapi.responses import RedirectResponse
-from fastapi import Depends
+from fastapi import Depends, status
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 from bson.objectid import ObjectId
@@ -9,48 +9,50 @@ from db import users_collection
 
 router = APIRouter()
 
-class AuthForm(BaseModel):
-    username: str
-    password: str
-
 @router.post("/signup")
-def signup(username: str = Form(...), password: str = Form(...)):
+async def signup(username: str = Form(...), password: str = Form(...)):
+    if users_collection is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database not connected.")
+
     try:
-        # Check if user already exists
         existing_user = users_collection.find_one({"username": username})
         if existing_user:
-            raise HTTPException(status_code=400, detail="Username already exists")
+            return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
 
-        # Insert new user
         users_collection.insert_one({
             "username": username,
-            "password": password  # For production, always hash passwords!
+            "password": password
         })
 
-        return RedirectResponse(url="/chat", status_code=303)
-
+        return RedirectResponse(url=f"/chat?username={username}", status_code=status.HTTP_303_SEE_OTHER)
+        
+    except HTTPException as e:
+        raise e
     except Exception as e:
-        print("Signup error:", e)
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+        print(f"Signup error: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal Server Error during signup")
 
 
 @router.post("/login")
-def login(username: str = Form(...), password: str = Form(...)):
+async def login(username: str = Form(...), password: str = Form(...)):
+    if users_collection is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database not connected.")
+
     try:
-        # Look for a matching username + password
         user = users_collection.find_one({"username": username, "password": password})
         if user:
-            return RedirectResponse(url=f"/chat?username={username}", status_code=303)
+            return RedirectResponse(url=f"/chat?username={username}", status_code=status.HTTP_303_SEE_OTHER)
         else:
-            raise HTTPException(status_code=401, detail="Invalid credentials")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
+    except HTTPException as e:
+        raise e
     except Exception as e:
-        print("Login error:", e)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        print(f"Login error: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error during login")
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-def get_current_user(token: str = Depends(oauth2_scheme)):
-    # Dummy user for now
+async def get_current_user(token: str = Depends(oauth2_scheme)):
     return {"username": "guest"}
