@@ -89,9 +89,15 @@
 
           if (data.history && data.history.length > 0) {
             for (const entry of data.history) {
-              if (entry.user_message) appendMessage("user", "You: " + entry.user_message);
-              if (entry.bot_response) appendMessage("bot", "Bot: " + entry.bot_response);
+              const isAdmin = entry.user_message === "[Admin]";
+              const isUser = entry.user_message && entry.user_message !== "[Admin]";
+              const isBot = entry.bot_response && !isAdmin;
+            
+              if (isUser) appendMessage("user", "You: " + entry.user_message);
+              if (isBot) appendMessage("bot", "Bot: " + entry.bot_response);
+              if (isAdmin) appendMessage("admin", "Admin: " + entry.bot_response);  // 👈 new line
             }
+
           }
         } catch (err) {
           console.error("Failed to load history", err);
