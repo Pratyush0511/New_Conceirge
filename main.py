@@ -67,6 +67,39 @@ def build_hotel_prompt(hotel_data):
     details = hotel_data.get("details", "No details available.")
     return hotel_name, details
 
+def initialize_conversation(username, hotel_data, past_chats):
+    """
+    Initializes the AI conversation with a constrained prompt for a specific hotel.
+    """
+    conversation.memory.clear()
+    hotel_name, hotel_details = build_hotel_prompt(hotel_data)
+    
+    # Define the system prompt to constrain the AI's role
+    system_prompt = (
+        f"You are a helpful and polite concierge for {hotel_name}. Your sole purpose is to "
+        f"assist guests with inquiries related to the hotel, its amenities, and services. "
+        f"You have access to the following information about the hotel: {hotel_details}. "
+        f"Do not answer any questions unrelated to your role or the hotel. If a user asks "
+        f"a non-concierge question, politely state that you can only assist with "
+        f"hotel-related inquiries. Keep your responses concise and professional."
+    )
+    
+    # Add the constrained prompt as a user message to guide the AI
+    conversation.memory.chat_memory.add_user_message(system_prompt)
+    
+    # Optionally add a summary of past chats to the context
+    if past_chats:
+        summary = "\n\n".join([f"User said: {c['user_message']}\nBot replied: {c['bot_response']}" for c in past_chats[-5:]])
+        conversation.memory.chat_memory.add_user_message(
+            f"Here's a brief summary of past chats with the user:\n{summary}"
+        )
+    
+    # Get the AI's first response based on the new constraints
+    initial_ai_response = conversation.predict(input=f"A guest has selected {hotel_name} and is ready to chat.")
+    selected_hotels[username] = hotel_name
+    
+    return initial_ai_response
+
 @app.get("/", response_class=HTMLResponse)
 async def root():
     return RedirectResponse(url="/login")
@@ -156,28 +189,17 @@ async def chat(request: Request):
                 "hotel": selected_hotels.get(username, "N/A"),
                 "timestamp": datetime.now(),
                 "user_message": message,
-                "bot_response": manual_msg  # Corrected variable name
+                "bot_response": manual_msg
             })
             logging.info(f"[DB] Inserted chat history for manual response.")
             return JSONResponse(content={"response": manual_msg})
 
-        reply = "" # Initialize reply to prevent UnboundLocalError
+        reply = ""
         if username not in selected_hotels:
             hotel_data = hotels_collection.find_one({"hotel_name": {"$regex": f"^{message}$", "$options": "i"}})
             if hotel_data:
-                conversation.memory.clear()
-                hotel_name, prompt = build_hotel_prompt(hotel_data)
-                conversation.memory.chat_memory.add_ai_message(prompt)
-
-                past_chats = list(history_collection.find({"username": username}))
-                if past_chats:
-                    summary = "\n\n".join([f"User said: {c['user_message']}\nBot replied: {c['bot_response']}" for c in past_chats[-5:]])
-                    conversation.memory.chat_memory.add_user_message(
-                        f"Here's a brief summary of past chats with the user:\n{summary}"
-                    )
-
-                selected_hotels[username] = hotel_name
-                reply = f"You're now chatting with {hotel_name} concierge. How can I help you?"
+                # Initialize conversation with the new, constrained prompt
+                reply = initialize_conversation(username, hotel_data, list(history_collection.find({"username": username})))
             else:
                 hotels = list(hotels_collection.find({}, {"hotel_name": 1}))
                 hotel_names = [h["hotel_name"] for h in hotels]
@@ -255,24 +277,12 @@ async def whatsapp_webhook(
             resp.message("AI service is currently unavailable.")
             return Response(content=str(resp), media_type="text/xml")
 
-        bot_reply = "" # Initialize bot_reply
+        bot_reply = ""
         if username not in selected_hotels:
-            # Corrected field name from "name" to "hotel_name"
             hotel_data = hotels_collection.find_one({"hotel_name": {"$regex": f"^{user_message}$", "$options": "i"}})
             if hotel_data:
-                conversation.memory.clear()
-                hotel_name, prompt = build_hotel_prompt(hotel_data)
-                conversation.memory.chat_memory.add_ai_message(prompt)
-
-                past_chats = list(history_collection.find({"username": username}))
-                if past_chats:
-                    summary = "\n\n".join([f"User said: {c['user_message']}\nBot replied: {c['bot_response']}" for c in past_chats[-5:]])
-                    conversation.memory.chat_memory.add_user_message(
-                        f"Here's a brief summary of past chats with the user:\n{summary}"
-                    )
-
-                selected_hotels[username] = hotel_name
-                bot_reply = f"You're now chatting with {hotel_name} concierge. How can I help you?"
+                # Initialize conversation with the new, constrained prompt
+                bot_reply = initialize_conversation(username, hotel_data, list(history_collection.find({"username": username})))
                 resp = MessagingResponse()
                 resp.message(bot_reply)
                 return Response(content=str(resp), media_type="text/xml")
